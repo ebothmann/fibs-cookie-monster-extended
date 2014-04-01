@@ -90,22 +90,22 @@ static NSString * const EBCarriageReturnCharacter = @"\r";
 - (int)cookieForMessage:(NSString *)message
 {
   // Create C string
-	NSUInteger aBufferSize = [message length] + 1;
-	char aBuffer[aBufferSize];
+  NSUInteger aBufferSize = [message length] + 1;
+  char aBuffer[aBufferSize];
 
   // Get message
-	[message getCString:aBuffer
+  [message getCString:aBuffer
             maxLength:aBufferSize
              encoding:[NSString defaultCStringEncoding]];
 
   // Return FIBS cookie
-	return FIBSCookie(aBuffer);
+  return FIBSCookie(aBuffer);
 }
 
 - (void)handleFIBSCookie:(int)cookie withMessage:(NSString *)message
 {
-	// Process cookie (a very long switch)
-	switch (cookie)
+  // Process cookie (a very long switch)
+  switch (cookie)
   {
     case BGOFIBSCookieGuestPrompt:
       ...
