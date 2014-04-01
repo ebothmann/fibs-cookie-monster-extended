@@ -1,0 +1,212 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+        "http://www.w3.org/TR/1999/REC-html401-19991224/loose.dtd">
+<html>
+<head>
+	<title>FIBS Cookie Monster</title>
+	<meta name="generator" content="BBEdit 6.1.2+">
+	
+</head>
+<body>
+<h1>FIBS Cookie Monster</h1>
+
+<p>
+by <a href="mailto:pdferguson@attbi.com">Paul Ferguson</a>
+</p>
+
+<p>
+FIBS Cookie Monster (FCM) is a simple API (application programming
+interface) to assign numeric keys--cookies--to messages sent by the FIBS
+server. It identifies more than 200 distinct messages, as explained in
+this documentation and the source code.
+</p>
+
+<h2>Download</h2>
+
+<p>
+<a href="http://www.fibs.com/fcm/fcm.tar">FIBS Cookie Monster Source and
+Documentation</a> Version 1.0 released 1 January 2003, tar format, 50K
+bytes.
+</p>
+
+<h2>System Notes</h2>
+
+<p>
+FCM was developed and tested (I use the word "tested" very loosely) on
+Mac OS X 10.2.3, using Apple's most current gcc based development tools
+(Dec 2002 release). The code should work on other platforms, including
+nearly all flavors of Linux, Unix, or Windows.  Although FCM is derived
+from the MacFIBS source code, it is significantly different internally,
+and may not work under Mac OS 9 (I have not tried it.)
+</p>
+
+<p>
+FCM requires the regcomp/regexec/regfree functions to compile and
+execute extended regular expressions. These functions typically are part
+of the Standard C Library, refer to your compiler documentation or man
+pages for more info.
+</p>
+
+<p>
+</p>
+
+<h2>Programming Notes</h2>
+<p>
+The remainder of this page provides a brief overview of FCM's design and
+use. It also includes several miscellaneous notes, presented in no
+particular order.
+</p>
+
+<h3>FIBS Messages</h3>
+<p>
+A FIBS message is one line of ASCII text (when using FCM, the message
+should not include the CR-LF terminator). FIBS messages are the basic
+building block of communications with the FIBS server.
+</p>
+
+<p>
+FIBS Cookie Monster's purpose is to identify FIBS messages. Some
+messages are identified by specific text patterns (for example "It's
+your turn to roll or double"), while other messages are identified by
+where they occur during a FIBS session (the Message of the Day messages
+sent after logging in). Using FCM, client software can process only the
+messages it is interested in, ignoring the rest.
+</p>
+
+<p>
+FCM performs no lexical or syntactic analysis on the contents of FIBS
+messages. Some messages contain complex data, for example a "board:..."
+message contains more than 20 numbers containg info about the game
+state. Other messages, such as errors, contain just text strings. You
+are responsible for parsing and interpreting message contents, based on
+the requirements of your application.
+</p>
+
+<p>
+FCM assumes your client uses <b>CLIP</b>, the <b>CLI</b>ent
+<b>P</b>rotocol, to communicate with FIBS. Information about CLIP can be
+found at <a href="http://www.fibs.demon.co.uk/">Andreas Schneider's home
+page</a>.  Note that FCM uses a slightly modified version of clip.h,
+which is included.
+</p>
+
+<h3>int FIBSCookie(char *);</h3>
+
+<p>
+<code>FIBSCookie()</code> is the principle function you will use. For
+each message, call <code>FIBSCookie(theMessage);</code> to obtain a
+cookie, which can be used to route the message to the appropriate parts
+of your application, using whatever notification mechanism you choose
+(such as a Publish/Subscribe design pattern.)
+</p>
+
+<p>
+<b>NOTE:</b> You must call <code>FIBSCookie()</code> with every message
+received from the FIBS server, starting immediately after estabilishing
+a TCP/IP connection with the server.  You cannot selectively call
+FIBSCookie with some messages, but not others, because the underlying
+state model may get confused.
+</p>
+
+<p>
+If you disconnect and reconnect to the FIBS server, you should call
+<code>ResetFIBSCookieMonster();</code> before reconnecting to reset the
+state properly.
+</p>
+
+<h3>Malformed Messages</h3>
+
+<p>
+Clients of FCM may need to handle two special cases, where FIBS messages
+are not properly separated by line terminator characters. If
+<code>FIBSCookie(msg);</code> returns <code>FIBS_BAD_Board</code> or
+<code>FIBS_BAD_AcceptDouble</code>, it means <code>msg</code> is
+malformed. You must split the message into two separate messages and
+process them separately.
+</p>
+
+<p>
+I'm not sure the cause of or the current status of this problem. While
+getting FCM ready I was not able to confirm that these malformed
+messages still occur, so I recommend that you test to see if you are
+receiving these in your application.
+</p>
+
+<p>
+The following code example shows one possible way to handle malformed
+messages (note that this code has not been tested.)
+</p>
+
+<pre>
+using namespace std;
+
+void ProcessFIBSMessage(string&amp; msg)
+{
+	int cookie = FIBSCookie(msg.c_str());
+	switch (cookie)
+	{
+	case FIBS_BAD_Board:
+	{	// find end of the board:... message
+		string tokens("0123456789:-\r");
+
+		int i = msg.find(":0:");
+		assert(i &gt; 0);
+
+		int j = msg.find_first_not_of(tokens, i);
+		assert(j &gt; 0);
+
+		while (msg[--j] != ':')
+			;
+		j += 2;
+		
+		string firstMsg(msg.substr(0, j-1));
+		ProcessFIBSMessage(firstMsg);
+		
+		string secondMsg(msg.substr(j));
+		ProcessFIBSMessage(secondMsg);
+		return;
+	}
+	break;
+
+	case FIBS_BAD_AcceptDouble:
+	{
+		string tokens("0123456789.");
+
+		int i = msg.find("cube shows ");
+		assert(i &gt; 0)
+		
+		i += 11;	// after the find string
+		
+		int j = msg.find_first_not_of(tokens, i);
+		assert(j &gt; 0);
+
+		string firstMsg(msg.substr(0, j-1));
+		ProcessFIBSMessage(firstMsg);
+		
+		string secondMsg(msg.substr(j));
+		ProcessFIBSMessage(secondMsg);
+		return;
+	}
+	break;
+	
+	default:
+		// process cookie and msg normally
+	}
+}
+</pre>
+
+<h3>Telnet? We don't need no stinking Telnet!</h3>
+
+<p>
+When you are using CLIP, FIBS does not send any telnet negotiation
+messages (after login, the server does send several telnet negotiation
+requests to non-CLIP clients.)  Hence, you don't need to scan for telnet
+bytes in incoming FIBS messages, which makes things easier.
+</p>
+
+
+<p>Enjoy!</p>
+<strong>&lt;fergy/&gt;<br>
+&nbsp;
+</strong>
+</body>
+</html>
