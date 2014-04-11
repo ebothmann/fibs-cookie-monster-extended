@@ -19,4 +19,8 @@ public class CookieDough {
         this.cookie=cookie;
         p=Pattern.compile(str);
     }
+    
+    public void addNextCookieDough(){
+    	
+    }
 }
