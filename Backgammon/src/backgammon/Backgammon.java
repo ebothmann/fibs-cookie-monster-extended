@@ -29,7 +29,7 @@ public class Backgammon {
         } catch (InterruptedException ex) {
             Logger.getLogger(Backgammon.class.getName()).log(Level.SEVERE, null, ex);
         }
-        //socketHandler.authenticate("phio", "motorrad");
+        
         socketHandler.authenticate("guest", "");
     }
 }
